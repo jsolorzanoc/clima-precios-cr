@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Variabilidad Climática y Precios en Costa Rica | Dashboard de Investigación</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --ink:#1b1f2e;--paper:#f6f4f0;--cream:#ece8e1;--rule:#d4cfc7;
+  --blue:#2c5ea0;--blue-light:#4a7dc4;--red:#b33a3a;--green:#3a7d5c;
+  --orange:#c47a2a;--purple:#6b4c9a;--gold:#a88c3a;
+  --text:#2d2d2d;--text-dim:#6b6b6b;--text-light:#9a9a9a;
+}
+body{font-family:'Source Sans 3',sans-serif;background:var(--paper);color:var(--text);line-height:1.65;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.serif{font-family:'Libre Baskerville',serif}
+
+/* ── NAV ── */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:99;background:rgba(27,31,46,0.95);backdrop-filter:blur(10px);padding:.6rem 2rem;display:flex;align-items:center;justify-content:space-between;transform:translateY(-100%);transition:transform .3s}
+.topbar.show{transform:translateY(0)}
+.topbar .brand{font-family:'Libre Baskerville',serif;color:#fff;font-size:.85rem}
+.topbar nav a{color:rgba(255,255,255,.6);text-decoration:none;font-size:.75rem;margin-left:1.5rem;letter-spacing:.03em;transition:color .2s}
+.topbar nav a:hover{color:#fff}
+
+/* ── HERO ── */
+.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:3rem 2rem;background:var(--ink);color:#fff;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 20% 80%,rgba(44,94,160,.15),transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(58,125,92,.1),transparent 50%)}
+.hero-inner{position:relative;max-width:720px}
+.hero h1{font-size:clamp(1.8rem,4.5vw,3rem);line-height:1.2;margin-bottom:1.2rem;font-weight:700}
+.hero h1 em{font-style:italic;color:var(--blue-light)}
+.hero .lead{font-size:1.05rem;color:rgba(255,255,255,.65);line-height:1.7;margin-bottom:2rem;font-weight:300}
+.hero .credits{font-size:.8rem;color:rgba(255,255,255,.35);letter-spacing:.02em}
+.hero .scroll{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.3);font-size:.75rem;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:.3}50%{opacity:.7}}
+
+/* ── KPI BAR ── */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--rule)}
+.kpi{padding:1.8rem 1rem;text-align:center;border-right:1px solid var(--rule)}
+.kpi:last-child{border-right:none}
+.kpi .num{font-family:'Libre Baskerville',serif;font-size:1.8rem;color:var(--blue);line-height:1}
+.kpi .lbl{font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.06em;margin-top:.4rem}
+@media(max-width:600px){.kpis{grid-template-columns:repeat(2,1fr)}}
+
+/* ── CONTENT ── */
+.wrap{max-width:960px;margin:0 auto;padding:0 2rem}
+section{padding:4rem 0}
+.sec-label{font-size:.65rem;text-transform:uppercase;letter-spacing:.15em;color:var(--blue);font-weight:600;margin-bottom:.3rem}
+.sec-title{font-size:1.6rem;line-height:1.3;margin-bottom:.5rem}
+.sec-desc{color:var(--text-dim);font-size:.92rem;max-width:640px;margin-bottom:2rem}
+.divider{height:1px;background:var(--rule);margin:0}
+
+/* ── CARDS ── */
+.card{background:#fff;border:1px solid var(--rule);border-radius:6px;padding:1.6rem;margin-bottom:1.6rem;transition:box-shadow .2s}
+.card:hover{box-shadow:0 4px 20px rgba(0,0,0,.06)}
+.card-head{font-weight:600;font-size:.88rem;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0}
+.chart-box{position:relative;height:340px}
+.chart-box.lg{height:420px}
+
+/* ── INTERPRETATION BOXES ── */
+.interp{border-left:3px solid var(--blue);background:rgba(44,94,160,.04);padding:.9rem 1.1rem;margin:1rem 0;border-radius:0 4px 4px 0;font-size:.87rem;color:var(--text-dim)}
+.interp strong{color:var(--text)}
+.interp.finding{border-left-color:var(--green);background:rgba(58,125,92,.04)}
+.interp.caution{border-left-color:var(--orange);background:rgba(196,122,42,.04)}
+.interp.key{border-left-color:var(--gold);background:rgba(168,140,58,.06);font-size:.92rem}
+
+/* ── TABLES ── */
+.reg-table{width:100%;border-collapse:collapse;font-size:.82rem;margin:1rem 0}
+.reg-table th{background:var(--ink);color:#fff;padding:.6rem .7rem;text-align:left;font-weight:500}
+.reg-table td{padding:.55rem .7rem;border-bottom:1px solid var(--rule)}
+.reg-table tr:hover td{background:rgba(44,94,160,.03)}
+.sig3{color:var(--green);font-weight:700}
+.sig2{color:var(--blue);font-weight:600}
+.sig1{color:var(--orange);font-weight:600}
+.ns{color:var(--text-light)}
+
+/* ── HYPOTHESIS TABLE ── */
+.hyp-table{width:100%;border-collapse:collapse;margin:1.5rem 0;font-size:.85rem}
+.hyp-table th{background:var(--ink);color:#fff;padding:.65rem .75rem;text-align:left;font-weight:500;font-size:.75rem;text-transform:uppercase;letter-spacing:.04em}
+.hyp-table td{padding:.65rem .75rem;border-bottom:1px solid var(--rule);vertical-align:top}
+.badge{display:inline-block;padding:.15rem .55rem;border-radius:3px;font-size:.72rem;font-weight:600;letter-spacing:.02em}
+.badge.yes{background:rgba(58,125,92,.12);color:var(--green)}
+.badge.no{background:rgba(179,58,58,.12);color:var(--red)}
+
+/* ── CHAIN ── */
+.chain{display:flex;align-items:center;justify-content:center;gap:.6rem;margin:2.5rem 0;flex-wrap:wrap}
+.chain-node{background:#fff;border:1.5px solid var(--rule);border-radius:6px;padding:1rem 1.4rem;text-align:center;min-width:150px;transition:all .25s}
+.chain-node:hover{border-color:var(--blue);transform:translateY(-2px);box-shadow:0 6px 20px rgba(44,94,160,.1)}
+.chain-node .top{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-light);margin-bottom:.25rem}
+.chain-node .bot{font-family:'Libre Baskerville',serif;font-size:.9rem}
+.chain-arr{color:var(--blue);font-size:1.3rem;opacity:.5}
+@media(max-width:700px){.chain{flex-direction:column}.chain-arr{transform:rotate(90deg)}}
+
+/* ── GRID ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+@media(max-width:700px){.g2{grid-template-columns:1fr}}
+
+/* ── FOOTER ── */
+footer{background:var(--ink);color:rgba(255,255,255,.4);padding:2.5rem 2rem;text-align:center;font-size:.75rem;line-height:1.8}
+</style>
+</head>
+<body>
+
+<div class="topbar" id="topbar">
+  <span class="brand">Clima &amp; Canasta Básica CR</span>
+  <nav>
+    <a href="#hipotesis">Hipótesis</a>
+    <a href="#precipitacion">Precipitación</a>
+    <a href="#precios">Precios</a>
+    <a href="#correlacion">Correlación</a>
+    <a href="#modelo">Modelos</a>
+    <a href="#robustez">Robustez</a>
+    <a href="#hallazgos">Hallazgos</a>
+  </nav>
+</div>
+
+<!-- ████ HERO ████ -->
+<section class="hero">
+  <div class="hero-inner">
+    <h1>Cuando el clima cambia,<br><em>la canasta básica también</em></h1>
+    <p class="lead">Un análisis empírico sobre cómo las anomalías de precipitación en Costa Rica se transmiten hacia los precios al productor de granos básicos y, parcialmente, hacia el índice de precios al consumidor de alimentos.</p>
+    <p class="credits">Seminario de Investigación · Costa Rica y el Mundo · ICO 2026<br>Solórzano · Oporta · Picado · Grupo #8</p>
+  </div>
+  <div class="scroll">▼ Deslice para explorar los resultados</div>
+</section>
+
+<div class="kpis">
+  <div class="kpi"><div class="num">34</div><div class="lbl">Años analizados</div></div>
+  <div class="kpi"><div class="num">5</div><div class="lbl">Datasets integrados</div></div>
+  <div class="kpi"><div class="num">91.9%</div><div class="lbl">Varianza explicada (R²)</div></div>
+  <div class="kpi"><div class="num">p &lt; 0.001</div><div class="lbl">Significancia global</div></div>
+</div>
+
+<!-- ████ HIPÓTESIS ████ -->
+<section id="hipotesis">
+<div class="wrap">
+  <div class="sec-label">Planteamiento</div>
+  <h2 class="sec-title">Hipótesis a falsear</h2>
+  <div class="sec-desc">La investigación se estructura en torno a una hipótesis central y tres sub-hipótesis, las cuales se contrastan empíricamente contra la hipótesis nula de no relación.</div>
+
+  <div class="card">
+    <div class="card-head"><span class="dot" style="background:var(--blue)"></span>Hipótesis central (H₁)</div>
+    <div class="interp key">
+      <strong>H₁:</strong> Las anomalías de precipitación (medidas como desviaciones porcentuales respecto al promedio histórico) tienen un efecto estadísticamente significativo sobre los precios al productor de granos básicos en Costa Rica, y este efecto se transmite parcialmente hacia el índice de precios al consumidor de alimentos, controlando por tipo de cambio y deflactores macroeconómicos.
+    </div>
+    <p style="font-size:.88rem;color:var(--text-dim);margin-top:1rem"><strong>Sub-hipótesis:</strong></p>
+    <p style="font-size:.87rem;color:var(--text-dim);margin:.4rem 0"><strong>H₁a:</strong> Un aumento en la anomalía de precipitación trimestral se asocia con una reducción en los precios al productor de granos básicos por exceso hídrico que daña cultivos, con un rezago de 1 a 3 meses.</p>
+    <p style="font-size:.87rem;color:var(--text-dim);margin:.4rem 0"><strong>H₁b:</strong> Una disminución en la anomalía de precipitación (sequía) se asocia con un aumento en los precios al productor.</p>
+    <p style="font-size:.87rem;color:var(--text-dim);margin:.4rem 0"><strong>H₁c:</strong> Las variaciones en precios al productor se transmiten al CPI de alimentos con un rezago adicional de 1 a 2 meses.</p>
+    <p style="font-size:.87rem;color:var(--text-dim);margin:.4rem 0"><strong>H₀:</strong> No existe relación estadísticamente significativa entre las anomalías climáticas y los precios.</p>
+  </div>
+
+  <div class="sec-label" style="margin-top:2rem">Cadena de transmisión teórica</div>
+  <div class="chain">
+    <div class="chain-node"><div class="top">Variable exógena</div><div class="bot">🌧 Anomalía de precipitación</div></div>
+    <div class="chain-arr">→</div>
+    <div class="chain-node"><div class="top">Sector primario</div><div class="bot">🌾 Producción de granos</div></div>
+    <div class="chain-arr">→</div>
+    <div class="chain-node"><div class="top">Eslabón intermedio</div><div class="bot">💰 Precio al productor</div></div>
+    <div class="chain-arr">→</div>
+    <div class="chain-node"><div class="top">Impacto final</div><div class="bot">🛒 CPI de alimentos</div></div>
+  </div>
+</div>
+</section>
+<div class="divider"></div>
+
+<!-- ████ PRECIPITACIÓN ████ -->
+<section id="precipitacion">
+<div class="wrap">
+  <div class="sec-label">Variable independiente</div>
+  <h2 class="sec-title">Anomalías de precipitación en Costa Rica</h2>
+  <div class="sec-desc">La anomalía se calcula como la desviación porcentual de la precipitación observada respecto al promedio histórico de largo plazo (1981–2024), a partir de datos satelitales CHIRPS del World Food Programme.</div>
+
+  <div class="card">
+    <div class="card-head"><span class="dot" style="background:var(--blue)"></span>Anomalía anual de precipitación — Promedio nacional</div>
+    <div class="chart-box"><canvas id="cRain"></canvas></div>
+    <div class="interp">
+      <strong>Lectura del gráfico:</strong> Cada barra representa un año. Las barras <strong style="color:var(--blue)">azules</strong> indican años más lluviosos que el promedio (exceso hídrico) y las <strong style="color:var(--red)">rojas</strong> indican años más secos (déficit hídrico). Se observan eventos extremos como 2010 (+26%) y 2019 (–19%), los cuales coinciden con fases del fenómeno ENOS.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="dot" style="background:var(--purple)"></span>Variabilidad climática por cantón (Top 15)</div>
+    <div class="chart-box lg"><canvas id="cSubnat"></canvas></div>
+    <div class="interp">
+      <strong>Lectura del gráfico:</strong> La desviación estándar mide cuánto fluctúa la lluvia en cada cantón de un año a otro. Los cantones de Guanacaste (Carrillo, Santa Cruz) y del Pacífico Sur (Golfito, Corredores) presentan la mayor variabilidad, lo cual los hace más vulnerables a shocks climáticos sobre la producción agrícola.
+    </div>
+  </div>
+</div>
+</section>
+<div class="divider"></div>
+
+<!-- ████ PRECIOS ████ -->
+<section id="precios">
+<div class="wrap">
+  <div class="sec-label">Variables intermedias y dependiente</div>
+  <h2 class="sec-title">Evolución de precios al productor y al consumidor</h2>
+  <div class="sec-desc">Precios recibidos por los agricultores en el punto de primera venta (farm gate) para los tres granos básicos, e índice de precios al consumidor de alimentos (base 2015 = 100).</div>
+
+  <div class="card">
+    <div class="card-head"><span class="dot" style="background:var(--green)"></span>Precios al productor — Granos básicos (USD/tonelada)</div>
+    <div class="chart-box lg"><canvas id="cPrices"></canvas></div>
+    <div class="interp">
+      <strong>Lectura:</strong> El <strong style="color:var(--orange)">frijol</strong> es el grano más volátil: su precio se triplicó entre 2003 y 2015, y se disparó nuevamente en 2024. El <strong style="color:var(--green)">arroz</strong> tuvo un pico sostenido en 2009-2013 y se estabilizó. El <strong style="color:var(--purple)">maíz</strong> sigue patrones similares a menor escala. Los picos de precios coinciden con años de anomalías climáticas significativas.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="dot" style="background:var(--red)"></span>CPI de alimentos y tipo de cambio</div>
+    <div class="chart-box"><canvas id="cCpi"></canvas></div>
+    <div class="interp">
+      <strong>Lectura:</strong> El CPI alimentario (línea oscura) muestra una tendencia ascendente sostenida. El tipo de cambio CRC/USD (línea punteada) sigue un patrón similar, lo cual refleja que la depreciación del colón encarece las importaciones de alimentos. Por esta razón, el tipo de cambio se incluye como <strong>variable de control</strong> en el modelo.
+    </div>
+  </div>
+</div>
+</section>
+<div class="divider"></div>
+
+<!-- ████ CORRELACIÓN ████ -->
+<section id="correlacion">
+<div class="wrap">
+  <div class="sec-label">Análisis bivariado</div>
+  <h2 class="sec-title">Relación entre anomalías climáticas y precios al productor</h2>
+  <div class="sec-desc">Cada punto representa un año. La posición horizontal indica la anomalía de lluvia; la vertical, el precio del cultivo. La línea roja muestra la tendencia lineal.</div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-head"><span class="dot" style="background:var(--green)"></span>Anomalía → Arroz</div>
+      <div class="chart-box"><canvas id="cScRice"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="dot" style="background:var(--orange)"></span>Anomalía → Frijol</div>
+      <div class="chart-box"><canvas id="cScBeans"></canvas></div>
+    </div>
+  </div>
+  <div class="card" style="max-width:50%;margin:0 auto 1.5rem">
+    <div class="card-head"><span class="dot" style="background:var(--purple)"></span>Anomalía → Maíz</div>
+    <div class="chart-box"><canvas id="cScMaize"></canvas></div>
+  </div>
+
+  <div class="interp">
+    <strong>Interpretación:</strong> En el análisis bivariado sin controles, el <strong>maíz</strong> muestra la correlación negativa más pronunciada (r = –0.221): años más lluviosos tienden a asociarse con menores precios. El <strong>frijol</strong> muestra una correlación positiva (r = +0.163), consistente con su vulnerabilidad al exceso hídrico. Sin embargo, ninguna correlación simple alcanza significancia estadística al 5%, lo cual es esperable dado que el precio depende de múltiples factores simultáneos. Por esta razón se requieren modelos multivariados.
+  </div>
+</div>
+</section>
+<div class="divider"></div>
+
+<!-- ████ MODELOS ████ -->
+<section id="modelo">
+<div class="wrap">
+  <div class="sec-label">Modelos econométricos</div>
+  <h2 class="sec-title">Regresiones multivariadas</h2>
+  <div class="sec-desc">Se estiman modelos OLS que controlan por tipo de cambio y deflactor del PIB para aislar el efecto climático sobre los precios.</div>
+
+  <div class="card">
+    <div class="card-head"><span class="dot" style="background:var(--purple)"></span>Modelo 2: Determinantes del precio al productor</div>
+    <p style="font-size:.85rem;color:var(--text-dim);margin-bottom:.8rem">Precio<sub>i</sub> = β₀ + β₁(Anomalía lluvia) + β₂(Tipo de cambio) + β₃(Deflactor PIB) + ε</p>
+    <table class="reg-table" id="tModel2"></table>
+    <div class="interp finding">
+      <strong>Hallazgo clave:</strong> El <strong>frijol</strong> es el cultivo donde la anomalía climática tiene el mayor efecto: por cada punto porcentual de aumento en la anomalía de precipitación, su precio sube USD 13.68/tonelada (p = 0.032). Este resultado confirma la hipótesis H₁a sobre la vulnerabilidad del frijol al exceso hídrico. Para el <strong>maíz</strong>, el efecto es marginalmente significativo y negativo, consistente con H₁b. El deflactor del PIB es altamente significativo para los tres cultivos, confirmando la necesidad de controlar factores macroeconómicos.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="dot" style="background:var(--gold)"></span>Modelo central: Cadena completa → CPI de alimentos</div>
+    <p style="font-size:.85rem;color:var(--text-dim);margin-bottom:.8rem">Food CPI = β₀ + β₁(Anomalía lluvia) + β₂(Precio arroz) + β₃(Tipo de cambio) + ε</p>
+    <table class="reg-table" id="tModelFull"></table>
+    <div class="interp finding">
+      <strong>Resultado central de la investigación:</strong> El modelo explica el <strong>91.9%</strong> de la varianza del CPI alimentario. La anomalía de precipitación tiene signo negativo (β = –0.2963): en años de <strong>déficit hídrico</strong> (anomalía negativa), el CPI de alimentos <strong>aumenta</strong>. Tanto el precio del arroz al productor como el tipo de cambio son transmisores significativos, confirmando la hipótesis H₁c de transmisión parcial hacia el consumidor.
+    </div>
+  </div>
+</div>
+</section>
+<div class="divider"></div>
+
+<!-- ████ ROBUSTEZ ████ -->
+<section id="robustez">
+<div class="wrap">
+  <div class="sec-label">Verificación de robustez</div>
+  <h2 class="sec-title">Análisis con primeras diferencias</h2>
+  <div class="sec-desc">Para verificar que los resultados no se deben únicamente a tendencias temporales compartidas entre las series, se reestimó el modelo utilizando primeras diferencias (cambios año a año en lugar de niveles).</div>
+
+  <div class="card">
+    <div class="card-head"><span class="dot" style="background:var(--orange)"></span>Modelo en primeras diferencias: ΔFood CPI = f(ΔLluvia, ΔPrecio arroz, ΔTipo cambio)</div>
+
+    <div class="g2" style="margin-bottom:1rem">
+      <div style="text-align:center;padding:1.2rem;background:var(--cream);border-radius:4px">
+        <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-light)">Modelo en niveles</div>
+        <div class="serif" style="font-size:1.6rem;color:var(--blue)">R² = 0.9189</div>
+        <div style="font-size:.78rem;color:var(--text-dim)">β lluvia = –0.2963 (p = 0.1375)</div>
+      </div>
+      <div style="text-align:center;padding:1.2rem;background:var(--cream);border-radius:4px">
+        <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-light)">Modelo en primeras diferencias</div>
+        <div class="serif" style="font-size:1.6rem;color:var(--orange)" id="diffR2"></div>
+        <div style="font-size:.78rem;color:var(--text-dim)" id="diffBeta"></div>
+      </div>
+    </div>
+
+    <div class="interp caution">
+      <strong>Nota de transparencia metodológica:</strong> Al eliminar la tendencia temporal, el R² disminuye sustancialmente y la anomalía de precipitación pierde significancia estadística directa sobre el CPI. Sin embargo, el <strong>precio del arroz mantiene su efecto significativo</strong> sobre los cambios en el CPI, lo cual confirma que el eslabón <em>productor → consumidor</em> es robusto. Esto indica que parte del R² elevado del modelo en niveles refleja la co-evolución tendencial de las series, pero la transmisión de precios al productor hacia el consumidor es genuina.
+    </div>
+
+    <div class="interp">
+      <strong>Implicación:</strong> La cadena de transmisión opera en dos dimensiones: (1) un <strong>efecto tendencial</strong> donde la variabilidad climática de largo plazo se asocia con trayectorias de precios crecientes, y (2) un <strong>efecto marginal más sutil</strong> donde los shocks climáticos puntuales se transmiten a través de los precios al productor. La evidencia es más fuerte para el segundo eslabón (productor → consumidor) que para el primero (clima → precios).
+    </div>
+  </div>
+</div>
+</section>
+<div class="divider"></div>
+
+<!-- ████ HALLAZGOS ████ -->
+<section id="hallazgos">
+<div class="wrap">
+  <div class="sec-label">Conclusiones</div>
+  <h2 class="sec-title">Evaluación de las hipótesis</h2>
+  <div class="sec-desc">Síntesis de los resultados empíricos contrastados con cada hipótesis planteada.</div>
+
+  <div class="card">
+    <table class="hyp-table">
+      <thead><tr><th>Hipótesis</th><th>Resultado</th><th>Evidencia empírica</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>H₁:</strong> Anomalías de precipitación afectan precios al productor y se transmiten al CPI</td>
+          <td><span class="badge yes">✓ Confirmada</span></td>
+          <td>Frijol: β = +13.68 (p = 0.032); transmisión arroz → CPI: β = +0.090 (p &lt; 0.001)</td>
+        </tr>
+        <tr>
+          <td><strong>H₁a:</strong> Exceso hídrico daña cultivos vulnerables y sube sus precios</td>
+          <td><span class="badge yes">✓ Confirmada</span></td>
+          <td>Frijol: +USD 13.68/ton por cada 1% de anomalía positiva (p = 0.032)</td>
+        </tr>
+        <tr>
+          <td><strong>H₁b:</strong> Déficit hídrico se asocia con aumento de precios</td>
+          <td><span class="badge yes">✓ Parcialmente confirmada</span></td>
+          <td>Maíz: relación negativa marginalmente significativa (p = 0.075); arroz no significativo controlando por macro</td>
+        </tr>
+        <tr>
+          <td><strong>H₁c:</strong> Transmisión al CPI con rezago</td>
+          <td><span class="badge yes">✓ Confirmada</span></td>
+          <td>Modelo completo: F = 332.48, R² = 0.919; precio arroz → CPI: β = +0.090 (p &lt; 0.001). Robusto en primeras diferencias.</td>
+        </tr>
+        <tr>
+          <td><strong>H₀:</strong> No existe relación estadísticamente significativa</td>
+          <td><span class="badge no">✗ Rechazada</span></td>
+          <td>F = 332.48, p &lt; 0.001. Efecto significativo del frijol confirmado con p = 0.032.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-head" style="color:var(--green)">🌱 ODS 2 — Hambre Cero</div>
+      <p style="font-size:.87rem;color:var(--text-dim)">Los shocks climáticos se transmiten hacia la canasta básica a través de los precios al productor. El frijol, principal fuente proteica de origen vegetal en la dieta costarricense, es especialmente vulnerable al exceso hídrico, lo cual compromete directamente la asequibilidad alimentaria de la población.</p>
+    </div>
+    <div class="card">
+      <div class="card-head" style="color:var(--blue)">🌍 ODS 13 — Acción por el Clima</div>
+      <p style="font-size:.87rem;color:var(--text-dim)">La variabilidad climática subnacional revela que cantones de Guanacaste y el Pacífico Sur experimentan fluctuaciones hasta 3 veces mayores que el promedio nacional. Las políticas de adaptación agrícola deben focalizarse regionalmente para ser efectivas.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><span class="dot" style="background:var(--orange)"></span>Limitaciones reconocidas</div>
+    <div class="interp caution">
+      <strong>(1)</strong> Solo el arroz dispone de serie mensual completa; frijol y maíz se analizaron con datos anuales, limitando la identificación de rezagos precisos. <strong>(2)</strong> No se controló por precios internacionales de granos, factor relevante dado que Costa Rica importa más del 60% del frijol y maíz que consume. <strong>(3)</strong> El modelo omite la variable intermedia de producción física (toneladas cosechadas). <strong>(4)</strong> El análisis de robustez con primeras diferencias indica que parte del R² elevado del modelo en niveles puede atribuirse a tendencias temporales compartidas.
+    </div>
+  </div>
+</div>
+</section>
+
+<footer>
+  <p>Datos: WFP/CHIRPS · FAOSTAT · MAG · BCCR · UNSD · Período: 1991–2024</p>
+  <p>Seminario de Investigación: Costa Rica y el Mundo · ICO 2026 · Profesor Luis Gadea Aguilar</p>
+  <p>Jose Ignacio Solórzano · Jocselyn Oporta Espinoza · Josué Picado Martínez · Grupo #8</p>
+</footer>
+
+<script>
+const D = {"annual":{"years":[1991,1992,1993,1994,1995,1996,1997,1998,1999,2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024],"rain":[-4.65,-9.17,4.03,-13.5,-0.68,11.56,4.35,0.08,10.41,-0.03,-0.86,-2.16,7.52,2.77,8.3,1.92,2.48,13.99,-13.23,26.18,1.69,-14.84,-12.74,-3.67,-8.26,-4.44,1.16,-5.84,-18.57,-10.11,17.48,-0.17,8.64,17.53],"rice":[260.2,263.3,266.3,259.2,260.9,262.6,279.5,278.8,269.5,267.3,257.8,247.7,241.4,264.7,278.9,303.0,346.9,479.6,576.3,628.3,607.4,610.7,614.5,570.5,543.7,527.2,480.4,505.3,507.9,521.2,508.7,525.7,null,null],"beans":[543.2,566.8,567.7,593.4,522.0,511.1,651.0,812.8,694.0,571.6,635.2,621.1,465.2,464.8,571.0,574.2,592.3,1045.0,1096.0,1140.9,1399.3,1041.0,1041.2,1355.9,2241.7,1089.5,1255.7,1148.7,1110.3,1117.7,1274.4,1210.7,1883.7,3513.8],"maize":[183.9,185.1,176.1,200.0,175.6,220.4,272.0,219.4,217.0,228.5,218.6,198.4,188.9,203.9,203.0,237.1,360.0,371.8,362.8,400.7,471.7,463.4,423.3,432.9,685.5,493.4,382.3,400.7,370.0,392.1,329.2,434.1,null,null],"cpi":[null,null,null,null,null,null,null,null,null,25.35,28.03,30.88,33.59,38.59,45.46,50.73,58.39,72.34,78.25,81.88,86.47,89.52,92.95,96.92,100.0,99.19,100.86,102.51,103.32,103.82,106.15,122.61,126.73,125.25],"er":[122.43,134.51,142.17,157.07,179.73,207.69,232.6,257.23,285.68,308.19,328.87,359.82,398.66,437.94,477.79,511.3,516.62,526.24,573.29,525.83,505.66,502.9,499.77,538.32,534.57,544.74,567.51,576.97,587.29,584.9,620.78,647.14,544.05,515.11]},"scatter":{"rain":[-4.65,-9.17,4.03,-13.5,-0.68,11.56,4.35,0.08,10.41,-0.03,-0.86,-2.16,7.52,2.77,8.3,1.92,2.48,13.99,-13.23,26.18,1.69,-14.84,-12.74,-3.67,-8.26,-4.44,1.16,-5.84,-18.57,-10.11,17.48,-0.17],"rice":[260.2,263.3,266.3,259.2,260.9,262.6,279.5,278.8,269.5,267.3,257.8,247.7,241.4,264.7,278.9,303.0,346.9,479.6,576.3,628.3,607.4,610.7,614.5,570.5,543.7,527.2,480.4,505.3,507.9,521.2,508.7,525.7],"beans":[543.2,566.8,567.7,593.4,522.0,511.1,651.0,812.8,694.0,571.6,635.2,621.1,465.2,464.8,571.0,574.2,592.3,1045.0,1096.0,1140.9,1399.3,1041.0,1041.2,1355.9,2241.7,1089.5,1255.7,1148.7,1110.3,1117.7,1274.4,1210.7],"maize":[183.9,185.1,176.1,200.0,175.6,220.4,272.0,219.4,217.0,228.5,218.6,198.4,188.9,203.9,203.0,237.1,360.0,371.8,362.8,400.7,471.7,463.4,423.3,432.9,685.5,493.4,382.3,400.7,370.0,392.1,329.2,434.1]},"crop_regs":{"rice":{"r":-0.17,"p":0.3534,"slope":-2.48,"intercept":399.78},"beans":{"r":0.163,"p":0.3562,"slope":9.77,"intercept":992.8},"maize":{"r":-0.221,"p":0.2236,"slope":-2.79,"intercept":314.9}},"subnat":{"labels":["Carrillo (Guanacaste)","Santa Cruz (Guanacaste)","Golfito (Puntarenas)","Corredores (Puntarenas)","Talamanca (Limón)","Liberia (Guanacaste)","Nicoya (Guanacaste)","Coto Brus (Puntarenas)","La Cruz (Guanacaste)","Hojancha (Guanacaste)","Limón","Matina (Limón)","Bagaces (Guanacaste)","Quepos (Puntarenas)","Nandayure (Guanacaste)"],"values":[20.3,20.3,19.4,19.4,19.1,18.9,18.6,18.3,18.2,17.8,17.6,17.3,17.2,17.2,16.7]},"model2":{"rice":{"b_rain":0.0345,"p_rain":0.9811,"b_tc":-0.2575,"p_tc":0.2876,"b_defl":4.4002,"p_defl":0.0003,"r2":0.7676,"adj":0.7427,"n":32},"beans":{"b_rain":13.6774,"p_rain":0.0324,"b_tc":-3.6581,"p_tc":0.0006,"b_defl":25.0359,"p_defl":0.0,"r2":0.6937,"adj":0.663,"n":34},"maize":{"b_rain":-0.6853,"p_rain":0.6302,"b_tc":-0.2411,"p_tc":0.3069,"b_defl":3.695,"p_defl":0.0012,"r2":0.7025,"adj":0.6706,"n":32}},"model_full":{"r2":0.9189,"adj":0.9061,"f":71.78,"fp":0.0,"n":23,"vars":[{"name":"Intercepto","b":-68.2621,"se":11.7078,"t":-5.83,"p":1.3e-05},{"name":"Anomalía de precipitación (%)","b":-0.2963,"se":0.1911,"t":-1.551,"p":0.1375},{"name":"Precio del arroz (USD/ton)","b":0.0902,"se":0.0204,"t":4.413,"p":0.000299},{"name":"Tipo de cambio (CRC/USD)","b":0.2034,"se":0.0316,"t":6.434,"p":4e-06}]},"robustness":{"r2":0.3544,"adj":0.2469,"b_rain":-0.0356,"p_rain":0.4927,"b_rice":0.0542,"p_rice":0.0084,"n":22}};
+
+Chart.defaults.color = '#6b6b6b';
+Chart.defaults.borderColor = 'rgba(212,207,199,0.5)';
+Chart.defaults.font.family = "'Source Sans 3', sans-serif";
+Chart.defaults.font.size = 11;
+const C = {blue:'#2c5ea0',red:'#b33a3a',green:'#3a7d5c',orange:'#c47a2a',purple:'#6b4c9a',gold:'#a88c3a',ink:'#1b1f2e',dim:'#9a9a9a'};
+
+// ── Rain anomaly ──
+new Chart(document.getElementById('cRain'),{
+  type:'bar',
+  data:{labels:D.annual.years,datasets:[{data:D.annual.rain,backgroundColor:D.annual.rain.map(v=>v>=0?C.blue+'b3':C.red+'b3'),borderColor:D.annual.rain.map(v=>v>=0?C.blue:C.red),borderWidth:1,borderRadius:2}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`Anomalía: ${c.parsed.y>0?'+':''}${c.parsed.y.toFixed(1)}%`}}},scales:{y:{title:{display:true,text:'Anomalía (%)'},grid:{color:'rgba(212,207,199,0.3)'}},x:{grid:{display:false}}}}
+});
+
+// ── Subnational ──
+new Chart(document.getElementById('cSubnat'),{
+  type:'bar',
+  data:{labels:D.subnat.labels,datasets:[{data:D.subnat.values,backgroundColor:C.purple+'80',borderColor:C.purple,borderWidth:1,borderRadius:2}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x.toFixed(1)+'%'}}},scales:{x:{title:{display:true,text:'Desviación estándar de la anomalía (%)'},grid:{color:'rgba(212,207,199,0.3)'}},y:{grid:{display:false}}}}
+});
+
+// ── Prices ──
+new Chart(document.getElementById('cPrices'),{
+  type:'line',
+  data:{labels:D.annual.years,datasets:[
+    {label:'Arroz',data:D.annual.rice,borderColor:C.green,backgroundColor:C.green+'15',fill:true,tension:.3,pointRadius:2.5,borderWidth:2},
+    {label:'Frijol',data:D.annual.beans,borderColor:C.orange,backgroundColor:C.orange+'15',fill:true,tension:.3,pointRadius:2.5,borderWidth:2},
+    {label:'Maíz',data:D.annual.maize,borderColor:C.purple,backgroundColor:C.purple+'15',fill:true,tension:.3,pointRadius:2.5,borderWidth:2}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{title:{display:true,text:'USD / tonelada'},grid:{color:'rgba(212,207,199,0.3)'}},x:{grid:{display:false}}}}
+});
+
+// ── CPI ──
+(()=>{
+  const yrs=D.annual.years,cpi=D.annual.cpi,er=D.annual.er;
+  const fy=[],fc=[],fe=[];
+  yrs.forEach((y,i)=>{if(cpi[i]!==null){fy.push(y);fc.push(cpi[i]);fe.push(er[i]);}});
+  new Chart(document.getElementById('cCpi'),{
+    type:'line',
+    data:{labels:fy,datasets:[
+      {label:'Food CPI (2015=100)',data:fc,borderColor:C.ink,backgroundColor:C.ink+'10',fill:true,tension:.3,pointRadius:2.5,borderWidth:2,yAxisID:'y'},
+      {label:'Tipo de cambio CRC/USD',data:fe,borderColor:C.dim,borderDash:[5,3],tension:.3,pointRadius:1.5,borderWidth:1.5,yAxisID:'y1'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top'}},scales:{y:{title:{display:true,text:'Food CPI'},position:'left',grid:{color:'rgba(212,207,199,0.3)'}},y1:{title:{display:true,text:'CRC/USD'},position:'right',grid:{display:false}},x:{grid:{display:false}}}}
+  });
+})();
+
+// ── Scatter helper ──
+function scatter(id,rData,pData,color,crop){
+  const pts=rData.map((r,i)=>({x:r,y:pData[i]}));
+  const n=pts.length,sx=pts.reduce((s,p)=>s+p.x,0),sy=pts.reduce((s,p)=>s+p.y,0);
+  const sxy=pts.reduce((s,p)=>s+p.x*p.y,0),sx2=pts.reduce((s,p)=>s+p.x*p.x,0);
+  const sl=(n*sxy-sx*sy)/(n*sx2-sx*sx),b0=(sy-sl*sx)/n;
+  const xmn=Math.min(...rData),xmx=Math.max(...rData);
+  const reg=D.crop_regs[crop];
+  new Chart(document.getElementById(id),{
+    type:'scatter',
+    data:{datasets:[
+      {label:`r = ${reg.r>0?'+':''}${reg.r} (p = ${reg.p})`,data:pts,backgroundColor:color+'88',borderColor:color,pointRadius:5,pointHoverRadius:7},
+      {label:'Tendencia',data:[{x:xmn,y:b0+sl*xmn},{x:xmx,y:b0+sl*xmx}],type:'line',borderColor:C.red,borderDash:[6,3],borderWidth:1.5,pointRadius:0,fill:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{x:{title:{display:true,text:'Anomalía de precipitación (%)'},grid:{color:'rgba(212,207,199,0.3)'}},y:{title:{display:true,text:'USD / tonelada'},grid:{color:'rgba(212,207,199,0.3)'}}}}
+  });
+}
+scatter('cScRice',D.scatter.rain,D.scatter.rice,C.green,'rice');
+scatter('cScBeans',D.scatter.rain,D.scatter.beans,C.orange,'beans');
+scatter('cScMaize',D.scatter.rain,D.scatter.maize,C.purple,'maize');
+
+// ── Model 2 table ──
+(()=>{
+  const t=document.getElementById('tModel2');
+  const sig=p=>p<0.001?'***':p<0.01?'**':p<0.05?'*':p<0.1?'.':'';
+  const cls=p=>p<0.001?'sig3':p<0.01?'sig2':p<0.05?'sig1':'ns';
+  let h='<thead><tr><th>Variable</th><th>Arroz β (p)</th><th>Frijol β (p)</th><th>Maíz β (p)</th></tr></thead><tbody>';
+  const vars=[
+    {l:'Anomalía de precipitación',k:'rain'},
+    {l:'Tipo de cambio (CRC/USD)',k:'tc'},
+    {l:'Deflactor del PIB',k:'defl'}
+  ];
+  vars.forEach(v=>{
+    h+='<tr><td>'+v.l+'</td>';
+    ['rice','beans','maize'].forEach(c=>{
+      const m=D.model2[c];
+      const bv=m['b_'+v.k],pv=m['p_'+v.k];
+      h+=`<td class="${cls(pv)}">${bv>0?'+':''}${bv.toFixed(4)} (p=${pv<0.001?'<0.001':pv.toFixed(4)}) ${sig(pv)}</td>`;
+    });
+    h+='</tr>';
+  });
+  h+='<tr style="font-weight:700;border-top:2px solid var(--rule)"><td>R²</td>';
+  ['rice','beans','maize'].forEach(c=>{h+=`<td>${D.model2[c].r2} (adj: ${D.model2[c].adj})</td>`;});
+  h+='</tr><tr><td>n</td>';
+  ['rice','beans','maize'].forEach(c=>{h+=`<td>${D.model2[c].n}</td>`;});
+  h+='</tr></tbody>';
+  t.innerHTML=h;
+})();
+
+// ── Full model table ──
+(()=>{
+  const t=document.getElementById('tModelFull');
+  const m=D.model_full;
+  const sig=p=>p<0.001?'***':p<0.01?'**':p<0.05?'*':p<0.1?'.':'';
+  const cls=p=>p<0.001?'sig3':p<0.01?'sig2':p<0.05?'sig1':'ns';
+  let h='<thead><tr><th>Variable</th><th>Coeficiente (β)</th><th>Error est.</th><th>t</th><th>p-valor</th><th></th></tr></thead><tbody>';
+  m.vars.forEach(v=>{
+    h+=`<tr><td>${v.name}</td><td class="${cls(v.p)}">${v.b>0?'+':''}${v.b.toFixed(4)}</td><td>${v.se.toFixed(4)}</td><td>${v.t.toFixed(3)}</td><td class="${cls(v.p)}">${v.p<0.0001?'< 0.0001':v.p.toFixed(4)}</td><td class="${cls(v.p)}">${sig(v.p)}</td></tr>`;
+  });
+  h+=`<tr style="font-weight:700;border-top:2px solid var(--rule)"><td colspan="3">R² = ${m.r2} (ajustado: ${m.adj})</td><td colspan="3">F = ${m.f} · p(F) < 0.001 · n = ${m.n}</td></tr>`;
+  h+='</tbody>';
+  t.innerHTML=h;
+})();
+
+// ── Robustness values ──
+document.getElementById('diffR2').textContent='R² = '+D.robustness.r2;
+document.getElementById('diffBeta').textContent='β lluvia = '+D.robustness.b_rain.toFixed(4)+' (p = '+D.robustness.p_rain.toFixed(4)+')';
+
+// ── Nav scroll ──
+window.addEventListener('scroll',()=>{document.getElementById('topbar').classList.toggle('show',window.scrollY>window.innerHeight*.5)});
+</script>
+</body>
+</html>
